@@ -1,7 +1,14 @@
 {
   "permissions": {
     "allow": [
-      "Bash(npx create-next-app:*)"
+      "Bash(npx create-next-app:*)",
+      "Bash(npx shadcn@latest init -d)",
+      "Bash(npx shadcn@latest add button input card scroll-area badge separator -y)",
+      "Bash(npm run build:*)",
+      "Bash(npm install tw-animate-css)",
+      "Bash(npm ls:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
     ]
   }
 }

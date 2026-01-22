@@ -1,0 +1,1 @@
+export { EthicalDisclaimer } from './EthicalDisclaimer';
