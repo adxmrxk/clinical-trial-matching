@@ -17,10 +17,10 @@ export function MessageList({ messages }: MessageListProps) {
   }, [messages]);
 
   return (
-    <ScrollArea className="flex-1 p-4">
-      <div className="flex flex-col gap-4">
+    <ScrollArea className="h-full">
+      <div className="flex flex-col gap-4 p-4">
         {messages.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full text-center text-muted-foreground py-12">
+          <div className="flex flex-col items-center justify-center text-center text-muted-foreground py-12">
             <h3 className="text-lg font-medium mb-2">Welcome to Clinical Trial Matcher</h3>
             <p className="max-w-md">
               Tell me about your medical condition, and I&apos;ll help you find relevant clinical trials.

@@ -34,7 +34,7 @@ export function ChatInput({ onSendMessage, disabled }: ChatInputProps) {
         onKeyDown={handleKeyDown}
         placeholder="Describe your medical condition, age, and relevant health information..."
         disabled={disabled}
-        className="flex-1"
+        className="flex-1 border border-black/20"
       />
       <Button onClick={handleSend} disabled={disabled || !input.trim()}>
         Send
