@@ -27,11 +27,18 @@ export interface ClinicalTrialRaw {
   eligibility_criteria_text?: string;
   minimum_age?: string;
   maximum_age?: string;
+  sex?: string;
+  lead_sponsor?: string;
   locations: Array<{
     facility?: string;
     city?: string;
     state?: string;
     country?: string;
+  }>;
+  contacts?: Array<{
+    name?: string;
+    email?: string;
+    phone?: string;
   }>;
 }
 
@@ -48,7 +55,8 @@ export interface TrialMatch {
 
 // Simplified version for UI display
 export interface ClinicalTrial {
-  id: string;
+  id: string;  // NCT ID
+  nctId: string;  // NCT ID for display
   title: string;
   status: string;
   condition: string;
@@ -58,6 +66,18 @@ export interface ClinicalTrial {
   criteriaMatched: string[];
   criteriaViolated: string[];
   criteriaUnknown: string[];
+  // Additional details
+  phase?: string;
+  briefSummary?: string;
+  ageRange?: string;
+  sponsor?: string;
+  startDate?: string;
+  completionDate?: string;
+  enrollmentCount?: number;
+  contactName?: string;
+  contactEmail?: string;
+  contactPhone?: string;
+  officialUrl: string;  // Link to ClinicalTrials.gov
 }
 
 export interface PatientProfile {

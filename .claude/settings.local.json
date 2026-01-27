@@ -9,7 +9,13 @@
       "Bash(npm ls:*)",
       "Bash(git add:*)",
       "Bash(git commit:*)",
-      "Bash(git push:*)"
+      "Bash(git push:*)",
+      "Bash(python main.py:*)",
+      "Bash(npm run dev:*)",
+      "Bash(dir /a \"C:\\\\Users\\\\AdamR\\\\Desktop\\\\CP493 Directed Research Project\\\\backend\"\")",
+      "Bash(cmd /c \"dir /a C:\\\\Users\\\\AdamR\\\\Desktop\\\\CP493*Directed*Research*Project\\\\backend\"\")",
+      "Bash(timeout:*)",
+      "Bash(git reset:*)"
     ]
   }
 }

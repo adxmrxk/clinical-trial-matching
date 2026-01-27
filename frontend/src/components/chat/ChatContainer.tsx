@@ -86,7 +86,7 @@ export function ChatContainer({ onTrialsFound }: ChatContainerProps) {
         </p>
       </div>
       <div className="flex-1 overflow-hidden min-h-0">
-        <MessageList messages={messages} />
+        <MessageList messages={messages} isLoading={isLoading} />
       </div>
       <div className="shrink-0">
         <ChatInput onSendMessage={handleSendMessage} disabled={isLoading} />

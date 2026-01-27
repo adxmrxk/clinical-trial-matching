@@ -43,13 +43,22 @@ class ApiService {
 
     // Format location from first location in array
     const location = trial.locations.length > 0
-      ? [trial.locations[0].city, trial.locations[0].state, trial.locations[0].country]
+      ? [trial.locations[0].facility, trial.locations[0].city, trial.locations[0].state, trial.locations[0].country]
           .filter(Boolean)
           .join(', ')
       : 'Location not specified';
 
+    // Format age range
+    const ageRange = trial.minimum_age || trial.maximum_age
+      ? `${trial.minimum_age || 'No min'} - ${trial.maximum_age || 'No max'}`
+      : undefined;
+
+    // Get contact info if available
+    const contact = trial.contacts && trial.contacts.length > 0 ? trial.contacts[0] : null;
+
     return {
       id: trial.nct_id,
+      nctId: trial.nct_id,
       title: trial.title,
       status: trial.overall_status,
       condition: trial.conditions.join(', ') || 'Not specified',
@@ -59,6 +68,15 @@ class ApiService {
       criteriaMatched: match.criteria_satisfied.map(c => c.original_text),
       criteriaViolated: match.criteria_violated.map(c => c.original_text),
       criteriaUnknown: match.criteria_unknown.map(c => c.original_text),
+      // Additional details
+      phase: trial.phase || undefined,
+      briefSummary: trial.brief_summary || undefined,
+      ageRange,
+      sponsor: trial.lead_sponsor || undefined,
+      contactName: contact?.name || undefined,
+      contactEmail: contact?.email || undefined,
+      contactPhone: contact?.phone || undefined,
+      officialUrl: `https://clinicaltrials.gov/study/${trial.nct_id}`,
     };
   }
 
