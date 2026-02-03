@@ -1,0 +1,342 @@
+{
+  "name": "Clinical Trial Matching Pipeline",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "chat",
+        "responseMode": "responseNode",
+        "options": {
+          "rawBody": false
+        }
+      },
+      "id": "webhook-trigger",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [0, 0],
+      "webhookId": "chat"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/agents/profile",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ message: $json.body.message, current_profile: $json.body.patient_profile || null }) }}",
+        "options": {}
+      },
+      "id": "patient-profiling",
+      "name": "1. Patient Profiling",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [220, 0]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "check-confidence",
+              "leftValue": "={{ $json.confidence }}",
+              "rightValue": 0.75,
+              "operator": {
+                "type": "number",
+                "operation": "gte"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-profile-complete",
+      "name": "Profile Complete?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [440, 0]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/agents/discover",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_profile: $('1. Patient Profiling').item.json.updated_profile, max_results: 3 }) }}",
+        "options": {}
+      },
+      "id": "trial-discovery",
+      "name": "2. Trial Discovery",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, -150]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/agents/questions",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_profile: $('1. Patient Profiling').item.json.updated_profile, phase: 1, gaps: [] }) }}",
+        "options": {}
+      },
+      "id": "need-more-info",
+      "name": "Generate Question",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [660, 150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'need_info', patient_profile: $('1. Patient Profiling').item.json.updated_profile, message: $json.suggested_response || 'Could you tell me more about your condition?', trial_matches: [] }) }}",
+        "options": {}
+      },
+      "id": "respond-question",
+      "name": "Return Question",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [880, 150]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict"
+          },
+          "conditions": [
+            {
+              "id": "has-trials",
+              "leftValue": "={{ $json.trials.length }}",
+              "rightValue": 0,
+              "operator": {
+                "type": "number",
+                "operation": "gt"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "check-trials-found",
+      "name": "Trials Found?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2,
+      "position": [880, -150]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'no_trials', patient_profile: $('1. Patient Profiling').item.json.updated_profile, message: 'I could not find any trials matching your profile. Please try providing more details about your condition.', trial_matches: [] }) }}",
+        "options": {}
+      },
+      "id": "respond-no-trials",
+      "name": "No Trials Found",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1100, -50]
+    },
+    {
+      "parameters": {
+        "fieldToSplitOut": "trials",
+        "options": {}
+      },
+      "id": "split-trials",
+      "name": "Split Trials",
+      "type": "n8n-nodes-base.splitOut",
+      "typeVersion": 1,
+      "position": [1100, -250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/agents/extract",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ trial: $json }) }}",
+        "options": {}
+      },
+      "id": "criteria-extraction",
+      "name": "3. Extract Criteria",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1320, -250]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://localhost:8000/api/v1/agents/match",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify({ patient_profile: $('1. Patient Profiling').item.json.updated_profile, trial: $('Split Trials').item.json }) }}",
+        "options": {}
+      },
+      "id": "eligibility-matching",
+      "name": "4. Match Eligibility",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [1540, -250]
+    },
+    {
+      "parameters": {
+        "aggregate": "aggregateAllItemData",
+        "options": {}
+      },
+      "id": "aggregate-results",
+      "name": "Aggregate Results",
+      "type": "n8n-nodes-base.aggregate",
+      "typeVersion": 1,
+      "position": [1760, -250]
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ JSON.stringify({ status: 'success', patient_profile: $('1. Patient Profiling').item.json.updated_profile, message: 'I found ' + $json.data.length + ' clinical trials that may match your profile.', trial_matches: $json.data }) }}",
+        "options": {}
+      },
+      "id": "respond-success",
+      "name": "Return Results",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.1,
+      "position": [1980, -250]
+    }
+  ],
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "1. Patient Profiling",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "1. Patient Profiling": {
+      "main": [
+        [
+          {
+            "node": "Profile Complete?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Profile Complete?": {
+      "main": [
+        [
+          {
+            "node": "2. Trial Discovery",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Generate Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "2. Trial Discovery": {
+      "main": [
+        [
+          {
+            "node": "Trials Found?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Generate Question": {
+      "main": [
+        [
+          {
+            "node": "Return Question",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Trials Found?": {
+      "main": [
+        [
+          {
+            "node": "Split Trials",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "No Trials Found",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Split Trials": {
+      "main": [
+        [
+          {
+            "node": "3. Extract Criteria",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "3. Extract Criteria": {
+      "main": [
+        [
+          {
+            "node": "4. Match Eligibility",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "4. Match Eligibility": {
+      "main": [
+        [
+          {
+            "node": "Aggregate Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Aggregate Results": {
+      "main": [
+        [
+          {
+            "node": "Return Results",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "pinData": {}
+}

@@ -1,4 +1,4 @@
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, UploadFile, File
 from typing import Dict, List, Optional
 import uuid
 import random
@@ -738,3 +738,45 @@ async def delete_session(session_id: str):
     # Clear asked questions tracking
     question_generation_agent.clear_session(session_id)
     return {"status": "deleted"}
+
+
+@router.post("/transcribe")
+async def transcribe_audio(audio: UploadFile = File(...)):
+    """
+    Transcribe audio using OpenAI's Whisper API.
+
+    Accepts audio files (webm, wav, mp3, m4a, etc.) and returns transcribed text.
+    """
+    from ...services.whisper_service import whisper_service
+
+    # Validate file type
+    allowed_types = [
+        "audio/webm", "audio/wav", "audio/wave", "audio/x-wav",
+        "audio/mp3", "audio/mpeg", "audio/mp4", "audio/m4a",
+        "audio/ogg", "video/webm"  # Browser may send video/webm for audio recordings
+    ]
+
+    content_type = audio.content_type or ""
+    if not any(t in content_type for t in ["audio", "video/webm"]):
+        raise HTTPException(
+            status_code=400,
+            detail=f"Invalid file type: {content_type}. Expected audio file."
+        )
+
+    try:
+        # Read audio data
+        audio_data = await audio.read()
+
+        if len(audio_data) == 0:
+            raise HTTPException(status_code=400, detail="Empty audio file")
+
+        # Transcribe using Whisper
+        text = await whisper_service.transcribe(audio_data, audio.filename or "audio.webm")
+
+        return {"text": text}
+
+    except RuntimeError as e:
+        raise HTTPException(status_code=503, detail=str(e))
+    except Exception as e:
+        print(f"Transcription error: {e}")
+        raise HTTPException(status_code=500, detail="Failed to transcribe audio")

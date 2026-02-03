@@ -1,13 +1,72 @@
 import { ClinicalTrial, ChatResponse, TrialMatch } from '@/types';
 
 const API_BASE_URL = process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000/api/v1';
+const N8N_WEBHOOK_URL = process.env.NEXT_PUBLIC_N8N_URL || 'http://localhost:5678/webhook/chat';
+
+// Toggle this to switch between n8n and direct backend
+const USE_N8N = false;
 
 class ApiService {
   private sessionId: string | null = null;
+  private patientProfile: Record<string, any> | null = null;
 
   async sendMessage(message: string): Promise<{
     response: string;
     responses: string[];  // Multiple responses for phase transitions
+    trials: ClinicalTrial[];
+    sessionId: string;
+  }> {
+    if (USE_N8N) {
+      return this.sendMessageViaN8n(message);
+    } else {
+      return this.sendMessageDirect(message);
+    }
+  }
+
+  // New: Send via n8n workflow
+  private async sendMessageViaN8n(message: string): Promise<{
+    response: string;
+    responses: string[];
+    trials: ClinicalTrial[];
+    sessionId: string;
+  }> {
+    const res = await fetch(N8N_WEBHOOK_URL, {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+      },
+      body: JSON.stringify({
+        message,
+        patient_profile: this.patientProfile,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(`n8n error: ${res.status}`);
+    }
+
+    const data = await res.json();
+
+    // Store updated patient profile for next request
+    if (data.patient_profile) {
+      this.patientProfile = data.patient_profile;
+    }
+
+    // Convert trial matches if present
+    const trials = (data.trial_matches || []).map((match: any) => this.convertN8nTrialMatch(match));
+
+    return {
+      response: data.message || 'How can I help you find a clinical trial?',
+      responses: [data.message || 'How can I help you find a clinical trial?'],
+      trials,
+      sessionId: 'n8n-session',
+    };
+  }
+
+  // Original: Send directly to backend
+  private async sendMessageDirect(message: string): Promise<{
+    response: string;
+    responses: string[];
     trials: ClinicalTrial[];
     sessionId: string;
   }> {
@@ -42,6 +101,23 @@ class ApiService {
       responses,  // All responses for multi-message display
       trials,
       sessionId: data.session_id,
+    };
+  }
+
+  // Convert n8n trial match format
+  private convertN8nTrialMatch(match: any): ClinicalTrial {
+    return {
+      id: match.trial_id || 'unknown',
+      nctId: match.trial_id || 'unknown',
+      title: match.trial_id || 'Clinical Trial',
+      status: 'Recruiting',
+      condition: 'Not specified',
+      location: 'Not specified',
+      eligibility: match.eligibility_status || 'uncertain',
+      explanation: match.explanation || 'Eligibility being evaluated',
+      criteriaMatched: (match.criteria_satisfied || []).map((c: any) => c.original_text || c),
+      criteriaViolated: (match.criteria_violated || []).map((c: any) => c.original_text || c),
+      criteriaUnknown: (match.criteria_unknown || []).map((c: any) => c.original_text || c),
     };
   }
 
@@ -118,6 +194,25 @@ class ApiService {
 
   resetSession() {
     this.sessionId = null;
+    this.patientProfile = null;
+  }
+
+  async transcribeAudio(audioBlob: Blob): Promise<string> {
+    const formData = new FormData();
+    formData.append('audio', audioBlob, 'recording.webm');
+
+    const res = await fetch(`${API_BASE_URL}/chat/transcribe`, {
+      method: 'POST',
+      body: formData,
+    });
+
+    if (!res.ok) {
+      const error = await res.json().catch(() => ({ detail: 'Transcription failed' }));
+      throw new Error(error.detail || `API error: ${res.status}`);
+    }
+
+    const data = await res.json();
+    return data.text;
   }
 }
 

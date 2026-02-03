@@ -3,7 +3,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from contextlib import asynccontextmanager
 
 from app.core.config import settings
-from app.api.routes import chat, trials
+from app.api.routes import chat, trials, agents
 from app.services.clinical_trials_api import clinical_trials_service
 
 
@@ -27,7 +27,11 @@ app = FastAPI(
 # Configure CORS
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=[settings.FRONTEND_URL, "http://localhost:3000"],
+    allow_origins=[
+        settings.FRONTEND_URL,
+        "http://localhost:3000",
+        "http://localhost:5678",  # n8n
+    ],
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
@@ -44,6 +48,12 @@ app.include_router(
     trials.router,
     prefix=f"{settings.API_V1_STR}/trials",
     tags=["Trials"]
+)
+
+app.include_router(
+    agents.router,
+    prefix=f"{settings.API_V1_STR}/agents",
+    tags=["Agents (n8n)"]
 )
 
 

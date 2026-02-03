@@ -17,7 +17,10 @@
       "Bash(timeout:*)",
       "Bash(git reset:*)",
       "Bash(xargs basename:*)",
-      "Bash(pip install:*)"
+      "Bash(pip install:*)",
+      "Bash(npm install:*)",
+      "Bash(n8n:*)",
+      "Bash(python -m uvicorn:*)"
     ]
   }
 }
